@@ -1,0 +1,52 @@
+{#-
+  Gemma chat template with tool-calling support, for vLLM.
+
+  The stock Gemma chat template does not render a `tools` block, so the
+  model improvises a non-standard format ("call:name{args}") that no
+  vLLM tool-call parser recognises. This template renders the tools
+  into the system preamble and instructs the model to emit JSON tool
+  calls wrapped in <tool_call>...</tool_call> — the format vLLM's
+  `hermes` parser extracts.
+
+  The instruction includes a concrete worked example: 4-bit quantized
+  models reproduce a shown example far more reliably than an abstract
+  spec, which matters here because the `hermes` parser hard-errors
+  (KeyError: 'arguments') if the model omits the nested `arguments`
+  object and flattens the args to the top level.
+
+  Launch vLLM with:
+    --chat-template <this file> --enable-auto-tool-choice --tool-call-parser hermes
+-#}
+{{- bos_token -}}
+{%- set ns = namespace(system='') -%}
+{%- if messages and messages[0]['role'] == 'system' -%}
+  {%- set ns.system = messages[0]['content'] | string | trim -%}
+  {%- set messages = messages[1:] -%}
+{%- endif -%}
+{%- if tools -%}
+  {%- if ns.system -%}{%- set ns.system = ns.system + '\n\n' -%}{%- endif -%}
+  {%- set ns.system = ns.system + 'You can call tools. To call a tool, write a <tool_call> tag containing a JSON object with EXACTLY two keys: "name" (the tool name, a string) and "arguments" (an object holding ALL of the call\'s arguments nested inside it). The "arguments" object is REQUIRED even when there is a single argument — never place argument keys at the top level next to "name". For example, to call a tool named "lookup_user":\n<tool_call>{"name": "lookup_user", "arguments": {"user_id": "u-42", "reason": "the operator asked for this user\'s current status"}}</tool_call>\nEmit one <tool_call> block per call; several are allowed. Put nothing else on a <tool_call> line. Every string value must be a valid JSON string — escape newlines as \\n and double quotes as \\". Available tools:\n' -%}
+  {%- for tool in tools -%}
+    {%- set ns.system = ns.system + (tool | tojson) + '\n' -%}
+  {%- endfor -%}
+{%- endif -%}
+{%- for message in messages -%}
+  {%- set role = 'model' if message['role'] == 'assistant' else message['role'] -%}
+  {%- if role == 'tool' -%}
+    {{- '<start_of_turn>user\n<tool_response>\n' + (message['content'] | string) + '\n</tool_response><end_of_turn>\n' -}}
+  {%- else -%}
+    {{- '<start_of_turn>' + role + '\n' -}}
+    {%- if loop.first and ns.system -%}{{- ns.system + '\n\n' -}}{%- endif -%}
+    {%- if message['content'] -%}{{- message['content'] | string -}}{%- endif -%}
+    {%- if message['tool_calls'] -%}
+      {%- for tc in message['tool_calls'] -%}
+        {%- set args = tc['function']['arguments'] -%}
+        {{- '\n<tool_call>{"name": "' + tc['function']['name'] + '", "arguments": ' -}}
+        {%- if args is string -%}{{- args -}}{%- else -%}{{- args | tojson -}}{%- endif -%}
+        {{- '}</tool_call>' -}}
+      {%- endfor -%}
+    {%- endif -%}
+    {{- '<end_of_turn>\n' -}}
+  {%- endif -%}
+{%- endfor -%}
+{%- if add_generation_prompt -%}{{- '<start_of_turn>model\n' -}}{%- endif -%}

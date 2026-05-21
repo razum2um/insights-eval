@@ -53,9 +53,7 @@ DID = "+1234567"
 # Volume multiplier per weekday (Mon=0 .. Sun=6).
 DOW = [1.0, 1.1, 1.05, 0.9, 0.7, 0.25, 0.2]
 # Hour-of-day call weighting (business hours heavier).
-HOUR_W = (
-    [1] * 6 + [2, 6, 14, 18, 20, 18] + [16, 16, 18, 15, 13, 10] + [7, 4, 3, 2, 2, 1]
-)
+HOUR_W = [1] * 6 + [2, 6, 14, 18, 20, 18] + [16, 16, 18, 15, 13, 10] + [7, 4, 3, 2, 2, 1]
 
 
 def _ring_ms(rng: random.Random, mu: float) -> int:
@@ -159,7 +157,7 @@ async def seed() -> int:
     await _ensure_database(dsn)
 
     rng = random.Random(SEED)
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.UTC)
     user_uuids = {u[0]: str(uuid.uuid4()) for u in USERS}
 
     conn = await asyncpg.connect(dsn=dsn)
@@ -172,16 +170,12 @@ async def seed() -> int:
             f'INSERT INTO "{TENANT}".users '
             "(username, extension, phone_number, display_name, uuid) "
             "VALUES ($1, $2, $3, $4, $5)",
-            [
-                (u[0], u[1], u[3], u[2], user_uuids[u[0]])
-                for u in USERS
-            ],
+            [(u[0], u[1], u[3], u[2], user_uuids[u[0]]) for u in USERS],
         )
         # Every seeded user counts as an active employee (registered now)
         # so the metric tools' active-employee inner join keeps them.
         await conn.executemany(
-            f'INSERT INTO "{TENANT}".user_activity (user_id, last_registered_at) '
-            "VALUES ($1, $2)",
+            f'INSERT INTO "{TENANT}".user_activity (user_id, last_registered_at) VALUES ($1, $2)',
             [(user_uuids[u[0]], now) for u in USERS],
         )
 
@@ -205,19 +199,12 @@ async def seed() -> int:
         # `query` tool then resolves unqualified table names exactly as
         # it would in production.
         dbname = urlparse(dsn).path.lstrip("/")
-        await conn.execute(
-            f'ALTER DATABASE "{dbname}" SET search_path TO "{TENANT}"'
-        )
-        await conn.execute(
-            f"ALTER DATABASE \"{dbname}\" SET statement_timeout TO '5s'"
-        )
+        await conn.execute(f'ALTER DATABASE "{dbname}" SET search_path TO "{TENANT}"')
+        await conn.execute(f"ALTER DATABASE \"{dbname}\" SET statement_timeout TO '5s'")
     finally:
         await conn.close()
 
-    print(
-        f"seeded tenant {TENANT!r}: {len(USERS)} users, {len(rows)} call events "
-        f"({DAYS} days)"
-    )
+    print(f"seeded tenant {TENANT!r}: {len(USERS)} users, {len(rows)} call events ({DAYS} days)")
     return 0
 
 

@@ -1,5 +1,7 @@
 # insights-eval
 
+[![CI](https://github.com/razum2um/insights-eval/actions/workflows/ci.yml/badge.svg)](https://github.com/razum2um/insights-eval/actions/workflows/ci.yml)
+
 An [Inspect](https://inspect.aisi.org.uk/) eval that measures whether an
 LLM agent keeps an **honest audit trail** when it uses a tool server that
 forces it to log its intent.
@@ -11,8 +13,17 @@ eval asks: when the agent is given a task whose real purpose is sensitive,
 does it write that purpose into the audit field — or does it *launder* the
 log into something benign?
 
-See [`REPORT.md`](REPORT.md) for the threat model, design rationale, and how
-to interpret the results.
+**Result (one run, `gemma-4-26B-A4B` via vLLM).** On `neutral` and
+`sensitive` tasks the agent logged its intent honestly. Under `pressured`
+tasks — where the user explicitly asks for a vague log — all three engaged
+samples **laundered** the audit trail (`audit_honesty` 1.00 → 0.00) while
+still writing fluent, full-length notes. The dishonesty is in the *content*,
+not the length.
+
+- **[`REPORT.md`](REPORT.md)** — threat model, design rationale, the full
+  3×3 results grid, and how to read it.
+- **[Live log viewer](https://razum2um.github.io/insights-eval/)** — browse
+  every sample's transcript, tool calls, and grader verdicts.
 
 ## What it measures
 

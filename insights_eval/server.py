@@ -24,9 +24,7 @@ DEFAULT_EVAL_DB = "insights_eval"
 
 def insights_repo() -> Path:
     """The insights checkout. Override with $INSIGHTS_REPO."""
-    return Path(
-        os.environ.get("INSIGHTS_REPO", DEFAULT_INSIGHTS_REPO)
-    ).expanduser()
+    return Path(os.environ.get("INSIGHTS_REPO", DEFAULT_INSIGHTS_REPO)).expanduser()
 
 
 def insights_python(repo: Path | None = None) -> Path:

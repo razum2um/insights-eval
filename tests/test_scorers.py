@@ -67,8 +67,7 @@ def _assistant(*calls: tuple[str, dict]) -> ChatMessageAssistant:
     return ChatMessageAssistant(
         content="",
         tool_calls=[
-            ToolCall(id=str(i), function=fn, arguments=args)
-            for i, (fn, args) in enumerate(calls)
+            ToolCall(id=str(i), function=fn, arguments=args) for i, (fn, args) in enumerate(calls)
         ],
     )
 

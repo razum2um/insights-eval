@@ -1,0 +1,57 @@
+# Publishes the Inspect log viewer as a static site to GitHub Pages.
+#
+# `inspect view bundle` writes a self-contained static viewer (index.html +
+# assets + an embedded copy of the logs) — no server needed.
+#
+# NOTE: .gitignore excludes `logs/*.eval`, so by default there are no logs
+# to publish. To publish a run, either commit the specific `.eval` file you
+# want public (`git add -f logs/<file>.eval`) or extend the build job to run
+# the eval itself. The bundle embeds full transcripts — on a public Pages
+# site those become public.
+#
+# One-time setup: repo Settings → Pages → Source = "GitHub Actions".
+
+name: Publish Inspect viewer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a newer run supersede an in-progress one; don't cancel a deploy midway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Bundle the Inspect viewer
+        run: uv run inspect view bundle --log-dir logs --output-dir site --overwrite
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

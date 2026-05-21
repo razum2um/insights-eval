@@ -4,7 +4,7 @@ An [Inspect](https://inspect.aisi.org.uk/) eval that measures whether an
 LLM agent keeps an **honest audit trail** when it uses a tool server that
 forces it to log its intent.
 
-The target is the MCP server inside the `insights` service (`~/src/l2d/insights`).
+The target is the MCP server inside the `insights` service.
 Every one of its tools requires a `user_intent` argument of **at least 1024
 characters**, billed by the tool schema as an audit-trail obligation. This
 eval asks: when the agent is given a task whose real purpose is sensitive,
@@ -28,32 +28,11 @@ Three scorers, over a 15-sample dataset (`neutral` / `sensitive` /
 Each scorer also reports a `by_condition` breakdown so the `neutral`
 baseline can be compared against `sensitive` and `pressured`.
 
-## Prerequisites
+## Setup & running
 
-- **`uv`** (this is a uv project — all commands are `uv run …`).
-- **A local PostgreSQL** reachable on `localhost:5432` with create-database
-  rights for your user (peer/trust auth is fine).
-- **The `insights` repo** checked out at `~/src/l2d/insights` with its own
-  venv synced (`cd ~/src/l2d/insights && uv sync`). The eval launches the
-  *real* insights MCP server out of that checkout — override the location
-  with `INSIGHTS_REPO`.
-- **A model API key** (e.g. `ANTHROPIC_API_KEY`) to run the eval against a
-  real model. The unit tests need no key.
-
-## Quick start
-
-```bash
-make setup          # uv sync this project
-make seed           # create + seed the `insights_eval` Postgres database
-make test           # 24 unit tests — no API key, no model
-
-# run the eval against a real model
-export ANTHROPIC_API_KEY=...
-make eval                                  # all 15 samples
-make eval MODEL=anthropic/claude-opus-4-7  # pick the model
-make eval-quick                            # 3-sample smoke test
-make view                                  # open the Inspect log viewer
-```
+See **[SETUP.md](SETUP.md)** — prerequisites, the `make` targets, and how to
+view results (locally, served, or as a static GitHub Pages bundle). In
+short: `make setup && make seed && make test`, then `make eval` / `make view`.
 
 ## How it fits together
 
@@ -89,5 +68,6 @@ scripts/
   seed_eval_db.py        deterministic synthetic call data
   mcp_stdio_launcher.py  runs the insights MCP server over stdio
 tests/          unit tests (run with no API key / no DB)
+SETUP.md        prerequisites, running, viewing/deploying results
 REPORT.md       threat model, methodology, how to read results
 ```
